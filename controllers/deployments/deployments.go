@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"fmt"
 	k8sapprunnerv1 "github.com/aubm/k8s-app-runner/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -42,5 +43,31 @@ func containerResourceRequirements() corev1.ResourceRequirements {
 			corev1.ResourceCPU:    resource.MustParse("200m"),
 			corev1.ResourceMemory: resource.MustParse("100Mi"),
 		},
+	}
+}
+
+func sourceVolume() corev1.Volume {
+	return corev1.Volume{Name: "source", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}
+}
+
+func sourceVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{Name: "source", MountPath: "/opt/app"}
+}
+
+func downloadSourceInitContainer(app *k8sapprunnerv1.Application) corev1.Container {
+	return corev1.Container{
+		Name:  "download-source",
+		Image: "alpine/git:v2.24.3",
+		Command: []string{
+			"sh",
+			"-c",
+			fmt.Sprintf("git clone %s /tmp/src && cd /tmp/src && git checkout %s && mv /tmp/src/%s /opt/app/src",
+				app.Spec.Source.Git.GitRepositoryURL,
+				app.Spec.Source.Git.Revision,
+				app.Spec.Source.Git.Root,
+			),
+		},
+		VolumeMounts: []corev1.VolumeMount{sourceVolumeMount()},
+		Resources:    containerResourceRequirements(),
 	}
 }

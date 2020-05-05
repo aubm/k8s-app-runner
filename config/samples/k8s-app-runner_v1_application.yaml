@@ -21,5 +21,6 @@ spec:
   entrypoint: 'index.js'
   source:
     git:
+      revision: '52e56383422d4d6535a6de1491968204ac75c3b3'
       gitRepositoryUrl: 'https://github.com/jatins/express-hello-world'
 

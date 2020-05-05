@@ -30,23 +30,10 @@ func (g *Python2DeploymentPropertiesSetter) SetDeploymentProperties(dep *appsv1.
 
 func setPythonDeploymentProperties(dep *appsv1.Deployment, app *k8sapprunnerv1.Application, dockerImage string) {
 	setCommonProperties(dep, app)
-	volumeMounts := []corev1.VolumeMount{{Name: "source", MountPath: "/opt/app"}}
-	dep.Spec.Template.Spec.Volumes = []corev1.Volume{{Name: "source", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}}
+	volumeMounts := []corev1.VolumeMount{sourceVolumeMount()}
+	dep.Spec.Template.Spec.Volumes = []corev1.Volume{sourceVolume()}
 	dep.Spec.Template.Spec.InitContainers = []corev1.Container{
-		{
-			Name:  "download-source",
-			Image: "alpine/git:v2.24.3",
-			Command: []string{
-				"sh",
-				"-c",
-				fmt.Sprintf("git clone %s /tmp/src && mv /tmp/src/%s /opt/app/src",
-					app.Spec.Source.Git.GitRepositoryURL,
-					app.Spec.Source.Git.Root,
-				),
-			},
-			VolumeMounts: volumeMounts,
-			Resources:    containerResourceRequirements(),
-		},
+		downloadSourceInitContainer(app),
 		{
 			Name:  "install-dependencies",
 			Image: dockerImage,

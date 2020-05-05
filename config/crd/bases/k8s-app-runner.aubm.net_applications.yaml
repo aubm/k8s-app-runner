@@ -89,6 +89,11 @@ spec:
                         description: Git repository URL for fetching sources
                         minLength: 1
                         type: string
+                      revision:
+                        default: master
+                        description: Git revision to use, default is master
+                        minLength: 1
+                        type: string
                       root:
                         description: Root folder of the application source in the
                           repository tree, defaults to "" (repository's root)

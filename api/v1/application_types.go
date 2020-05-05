@@ -65,6 +65,12 @@ type ApplicationSourceGit struct {
 	// +kubebuilder:validation:MinLength=1
 	GitRepositoryURL string `json:"gitRepositoryUrl"`
 
+	// Git revision to use, default is master
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:default=master
+	// +optional
+	Revision string `json:"revision"`
+
 	// Root folder of the application source in the repository tree, defaults to "" (repository's root)
 	// +kubebuilder:validation:MinLength=1
 	// +optional
