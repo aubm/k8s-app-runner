@@ -1,0 +1,25 @@
+---
+apiVersion: k8s-app-runner.aubm.net/v1
+kind: Application
+metadata:
+  name: minimal-flask-example
+spec:
+  runtime: 'python3'
+  port: 5000
+  entrypoint: 'app.py'
+  source:
+    git:
+      gitRepositoryUrl: 'https://github.com/deis/example-python-flask.git'
+---
+apiVersion: k8s-app-runner.aubm.net/v1
+kind: Application
+metadata:
+  name: express-hello-world
+spec:
+  runtime: 'node14'
+  port: 3000
+  entrypoint: 'index.js'
+  source:
+    git:
+      gitRepositoryUrl: 'https://github.com/jatins/express-hello-world'
+

@@ -1,0 +1,7 @@
+domain: aubm.net
+repo: github.com/aubm/k8s-app-runner
+resources:
+- group: k8s-app-runner
+  kind: Application
+  version: v1
+version: "2"
