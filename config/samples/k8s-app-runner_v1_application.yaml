@@ -13,7 +13,7 @@ spec:
   source:
     git:
       gitRepositoryUrl: 'https://github.com/aubm/k8s-app-runner.git'
-      revision: 'be3264c782bba1776da3af150ee87da6541d9954'
+      revision: 'b47fdd6e96135f937ac4d242ca1ebb3a78c9c354'
       root: 'sample-apps/hello-python'
 ---
 apiVersion: k8s-app-runner.aubm.net/v1
