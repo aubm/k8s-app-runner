@@ -56,6 +56,24 @@ spec:
                 description: The program entrypoint, for example "main.py"
                 minLength: 1
                 type: string
+              env:
+                description: A list of user defined environment to inject in the application
+                  runtime
+                items:
+                  properties:
+                    name:
+                      description: The name of the environment variable
+                      minLength: 1
+                      type: string
+                    value:
+                      description: The value of the environment variable
+                      minLength: 1
+                      type: string
+                  required:
+                  - name
+                  - value
+                  type: object
+                type: array
               maxReplicas:
                 default: 10
                 description: Maximum number of replicas for the application

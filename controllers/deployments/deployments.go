@@ -71,3 +71,15 @@ func downloadSourceInitContainer(app *k8sapprunnerv1.Application) corev1.Contain
 		Resources:    containerResourceRequirements(),
 	}
 }
+
+func envVars(app *k8sapprunnerv1.Application) []corev1.EnvVar {
+	envVars := []corev1.EnvVar{
+		{Name: "APP_NAME", Value: app.Name},
+		{Name: "APP_RUNTIME", Value: app.Spec.Runtime},
+		{Name: "POD_NAME", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
+	}
+	for _, envVar := range app.Spec.Env {
+		envVars = append(envVars, corev1.EnvVar{Name: envVar.Name, Value: envVar.Value})
+	}
+	return envVars
+}

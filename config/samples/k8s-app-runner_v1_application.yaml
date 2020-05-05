@@ -7,6 +7,9 @@ spec:
   runtime: 'python3'
   port: 5000
   entrypoint: 'app.py'
+  env:
+    - name: 'HELLO_TO'
+      value: 'Python experts'
   source:
     git:
       gitRepositoryUrl: 'https://github.com/aubm/k8s-app-runner.git'
@@ -21,6 +24,9 @@ spec:
   runtime: 'node14'
   port: 3000
   entrypoint: 'app.js'
+  env:
+    - name: 'HELLO_TO'
+      value: 'Node experts'
   source:
     git:
       gitRepositoryUrl: 'https://github.com/aubm/k8s-app-runner.git'

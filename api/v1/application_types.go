@@ -49,11 +49,25 @@ type ApplicationSpec struct {
 	// +optional
 	MaxReplicas int32 `json:"maxReplicas"`
 
+	// A list of user defined environment to inject in the application runtime
+	// +optional
+	Env []EnvVar `json:"env"`
+
 	// The program entrypoint, for example "main.py"
 	// +kubebuilder:validation:MinLength=1
 	Entrypoint string `json:"entrypoint"`
 
 	Source ApplicationSource `json:"source"`
+}
+
+type EnvVar struct {
+	// The name of the environment variable
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name"`
+
+	// The value of the environment variable
+	// +kubebuilder:validation:MinLength=1
+	Value string `json:"value"`
 }
 
 type ApplicationSource struct {

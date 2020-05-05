@@ -60,6 +60,7 @@ func setPythonDeploymentProperties(dep *appsv1.Deployment, app *k8sapprunnerv1.A
 				fmt.Sprintf("source /opt/app/venv/bin/activate && python /opt/app/src/%s", app.Spec.Entrypoint),
 			},
 			VolumeMounts: volumeMounts,
+			Env:          envVars(app),
 			Ports:        []corev1.ContainerPort{{ContainerPort: app.Spec.Port}},
 			Resources:    containerResourceRequirements(),
 		},
