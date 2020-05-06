@@ -26,13 +26,13 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // ApplicationReconciler reconciles a Application object
@@ -82,33 +82,21 @@ func (r *ApplicationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 }
 
 func (r *ApplicationReconciler) reconcileDeployment(ctx context.Context, app *k8sapprunnerv1.Application) error {
-	var dep appsv1.Deployment
-	if err := r.Get(ctx, client.ObjectKey{Namespace: app.Namespace, Name: app.Name}, &dep); err != nil {
-		if !errors.IsNotFound(err) {
+	dep := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: app.Name, Namespace: app.Namespace}}
+	res, err := controllerutil.CreateOrUpdate(ctx, r.Client, dep, func() error {
+		owner := metav1.GetControllerOf(dep)
+		if owner != nil && owner.UID != app.UID {
+			err := fmt.Errorf("Found existing deployment which is not controlled by application")
+			r.EventRecorder.Event(app, "Warning", "CreateDeployment", err.Error())
 			return err
 		}
-		if err := r.setDeploymentProperties(&dep, app); err != nil {
-			return err
-		}
-		if err := r.Create(ctx, &dep); err != nil {
-			return err
-		}
+		return r.setDeploymentProperties(dep, app)
+	})
+	if err != nil {
+		return client.IgnoreNotFound(err)
+	}
+	if res == controllerutil.OperationResultCreated {
 		r.EventRecorder.Event(app, "Normal", "CreateDeployment", fmt.Sprintf("Successfully created deployment %s", dep.Name))
-		return nil
-	}
-
-	owner := metav1.GetControllerOf(&dep)
-	if owner == nil || owner.UID != app.UID {
-		err := fmt.Errorf("Found existing deployment which is not controlled by application")
-		r.EventRecorder.Event(app, "Warning", "CreateDeployment", err.Error())
-		return err
-	}
-
-	if err := r.setDeploymentProperties(&dep, app); err != nil {
-		return err
-	}
-	if err := r.Update(ctx, &dep); err != nil {
-		return err
 	}
 
 	app.Status.AvailableReplicas = dep.Status.AvailableReplicas
@@ -134,33 +122,21 @@ func (r *ApplicationReconciler) setDeploymentProperties(dep *appsv1.Deployment, 
 }
 
 func (r *ApplicationReconciler) reconcileHPA(ctx context.Context, app *k8sapprunnerv1.Application, req ctrl.Request) error {
-	var hpa autoscalingv1.HorizontalPodAutoscaler
-	if err := r.Get(ctx, client.ObjectKey{Namespace: app.Namespace, Name: app.Name}, &hpa); err != nil {
-		if !errors.IsNotFound(err) {
+	hpa := &autoscalingv1.HorizontalPodAutoscaler{ObjectMeta: metav1.ObjectMeta{Name: app.Name, Namespace: app.Namespace}}
+	res, err := controllerutil.CreateOrUpdate(ctx, r.Client, hpa, func() error {
+		owner := metav1.GetControllerOf(hpa)
+		if owner != nil && owner.UID != app.UID {
+			err := fmt.Errorf("Found existing hpa which is not controlled by application")
+			r.EventRecorder.Event(app, "Warning", "CreateHPA", err.Error())
 			return err
 		}
-		if err := r.setHPAProperties(&hpa, app); err != nil {
-			return err
-		}
-		if err := r.Create(ctx, &hpa); err != nil {
-			return err
-		}
+		return r.setHPAProperties(hpa, app)
+	})
+	if err != nil {
+		return client.IgnoreNotFound(err)
+	}
+	if res == controllerutil.OperationResultCreated {
 		r.EventRecorder.Event(app, "Normal", "CreateHPA", fmt.Sprintf("Successfully created hpa %s", hpa.Name))
-		return nil
-	}
-
-	owner := metav1.GetControllerOf(&hpa)
-	if owner == nil || owner.UID != app.UID {
-		err := fmt.Errorf("Found existing hpa which is not controlled by application")
-		r.EventRecorder.Event(app, "Warning", "CreateHPA", err.Error())
-		return err
-	}
-
-	if err := r.setHPAProperties(&hpa, app); err != nil {
-		return err
-	}
-	if err := r.Update(ctx, &hpa); err != nil {
-		return err
 	}
 
 	return nil
@@ -183,34 +159,21 @@ func (r *ApplicationReconciler) setHPAProperties(hpa *autoscalingv1.HorizontalPo
 }
 
 func (r *ApplicationReconciler) reconcileService(ctx context.Context, app *k8sapprunnerv1.Application) error {
-	var svc corev1.Service
-
-	if err := r.Get(ctx, client.ObjectKey{Namespace: app.Namespace, Name: app.Name}, &svc); err != nil {
-		if !errors.IsNotFound(err) {
+	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: app.Name, Namespace: app.Namespace}}
+	res, err := controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
+		owner := metav1.GetControllerOf(svc)
+		if owner != nil && owner.UID != app.UID {
+			err := fmt.Errorf("Found existing service which is not controlled by application")
+			r.EventRecorder.Event(app, "Warning", "CreateService", err.Error())
 			return err
 		}
-		if err := r.setServiceProperties(&svc, app); err != nil {
-			return err
-		}
-		if err := r.Create(ctx, &svc); err != nil {
-			return err
-		}
+		return r.setServiceProperties(svc, app)
+	})
+	if err != nil {
+		return client.IgnoreNotFound(err)
+	}
+	if res == controllerutil.OperationResultCreated {
 		r.EventRecorder.Event(app, "Normal", "CreateService", fmt.Sprintf("Successfully created service %s", svc.Name))
-		return nil
-	}
-
-	owner := metav1.GetControllerOf(&svc)
-	if owner == nil || owner.UID != app.UID {
-		err := fmt.Errorf("Found existing service which is not controlled by application")
-		r.EventRecorder.Event(app, "Warning", "CreateService", err.Error())
-		return err
-	}
-
-	if err := r.setServiceProperties(&svc, app); err != nil {
-		return err
-	}
-	if err := r.Update(ctx, &svc); err != nil {
-		return err
 	}
 
 	ports := make([]int32, 0)
