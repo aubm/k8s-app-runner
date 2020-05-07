@@ -1,0 +1,170 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+  labels:
+    control-plane: controller-manager
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+    spec:
+      volumes:
+        - name: tls
+          secret:
+            secretName: controller-manager-tls
+      containers:
+        - command:
+            - /manager
+          image: aubm/k8s-app-runner-controller-minimal:latest
+          volumeMounts:
+            - mountPath: /tmp/k8s-webhook-server/serving-certs
+              name: tls
+          imagePullPolicy: Always
+          name: manager
+          resources:
+            limits:
+              cpu: 100m
+              memory: 30Mi
+            requests:
+              cpu: 100m
+              memory: 20Mi
+      terminationGracePeriodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-service
+  namespace: system
+spec:
+  ports:
+    - port: 443
+      targetPort: 9443
+  selector:
+    control-plane: controller-manager
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutate-pod
+webhooks:
+  - clientConfig:
+      caBundle: 'LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNuRENDQVlRQ0NRRHQzYS82cHVTaDB6QU5CZ2txaGtpRzl3MEJBUXNGQURBUU1RNHdEQVlEVlFRRERBVnQKZVMxallUQWVGdzB5TURBMU1EZ3hNakEzTVRoYUZ3MDBOekE1TWpReE1qQTNNVGhhTUJBeERqQU1CZ05WQkFNTQpCVzE1TFdOaE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdFZHMk54TlNuS0pTCnBWbmRIdEpZWUQ3aFR3WmpNaFFJeEwzVElpck1YTWR1QVo5SEc5U2Z5czdMQXBoMHlaUE1wUm5qZ05qNnh1a2gKeFlVcGV2dzZFK0xaeWpDbXNTdVdUSUNyZUJzNWVoT3YyZzB6ZUliWHhTdG9UcDROMWIvYzFHVnNneC9qdWVnKwpmcklXWE1VZzBzOFFvSE52QTd3eno4Z0UxRCt4dndPcHpsa3ZYS1h5UVNkZDFLY0VBZDZrRDF3NjFHTjlzeFg3Ck5UWmptRXAxdjRzSjhwbm0yWnA0alh6ZnFLQlR6TXdQWTBHcTB6QlBBemNHM0lMMG1GQWtpM2FLV01vYVVFMnEKamJXRUhNZDRodkdaZnFSelBIVStXZDl6T0JSd0VQZE9BMmlyY1VkcitiVzU4K3UvaldIWUpJVHhNcmV3dUluQQpnMElwTGxOMDhRSURBUUFCTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFBZFR5SEIvRU92UnlRSkQxdUVlUkMrClZsTDFsRWVqM2pHWndVQTNNcUYzclV4M3JMWFYzckxUckdZN2liRTkzYXoxd09CNVFCMnh1OGhkVmtmWmhUbjEKUmhBWDg2RnZDMDRqaDVZdkZ4aklyVXFkQnJkZ3p0UlplSXFlOTkyTGdNTFRhY2hucVp4dmZmMUJVVE01UmROLwplQ0RyZ2s4Sk51RDZDU2d2U1pycWRtNVpWaGhpNXdFaTE1MmtwajVPcStRMSszWjlBdnpHajJVK0dCVExCaEtYCmY0Vks3SHloTmdvWVRzdHRyaVBXUEpocVhORHZYYlkyQy8yYlo4UmNEa3U3VjFFK1d4NVAySUszUlJUbGZOVEkKOU1QS1kyRGY2SEdKNUVqZmxTUFJ1eGp2RkRhbGVnTmQzWmtFSFRTRHo1cHgycU9BSnptc09ibnNJR1Z4NEpJaQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=='
+      service:
+        name: webhook-service
+        namespace: k8s-app-runner
+        path: /mutate-pod
+    failurePolicy: Fail
+    name: mapplication.kb.io
+    # See https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#avoiding-deadlocks-in-self-hosted-webhooks
+    namespaceSelector:
+      matchExpressions:
+        - key: "control-plane"
+          operator: NotIn
+          values: ["controller-manager"]
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutate-application-v1
+webhooks:
+  - clientConfig:
+      caBundle: 'LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNuRENDQVlRQ0NRRHQzYS82cHVTaDB6QU5CZ2txaGtpRzl3MEJBUXNGQURBUU1RNHdEQVlEVlFRRERBVnQKZVMxallUQWVGdzB5TURBMU1EZ3hNakEzTVRoYUZ3MDBOekE1TWpReE1qQTNNVGhhTUJBeERqQU1CZ05WQkFNTQpCVzE1TFdOaE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdFZHMk54TlNuS0pTCnBWbmRIdEpZWUQ3aFR3WmpNaFFJeEwzVElpck1YTWR1QVo5SEc5U2Z5czdMQXBoMHlaUE1wUm5qZ05qNnh1a2gKeFlVcGV2dzZFK0xaeWpDbXNTdVdUSUNyZUJzNWVoT3YyZzB6ZUliWHhTdG9UcDROMWIvYzFHVnNneC9qdWVnKwpmcklXWE1VZzBzOFFvSE52QTd3eno4Z0UxRCt4dndPcHpsa3ZYS1h5UVNkZDFLY0VBZDZrRDF3NjFHTjlzeFg3Ck5UWmptRXAxdjRzSjhwbm0yWnA0alh6ZnFLQlR6TXdQWTBHcTB6QlBBemNHM0lMMG1GQWtpM2FLV01vYVVFMnEKamJXRUhNZDRodkdaZnFSelBIVStXZDl6T0JSd0VQZE9BMmlyY1VkcitiVzU4K3UvaldIWUpJVHhNcmV3dUluQQpnMElwTGxOMDhRSURBUUFCTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFBZFR5SEIvRU92UnlRSkQxdUVlUkMrClZsTDFsRWVqM2pHWndVQTNNcUYzclV4M3JMWFYzckxUckdZN2liRTkzYXoxd09CNVFCMnh1OGhkVmtmWmhUbjEKUmhBWDg2RnZDMDRqaDVZdkZ4aklyVXFkQnJkZ3p0UlplSXFlOTkyTGdNTFRhY2hucVp4dmZmMUJVVE01UmROLwplQ0RyZ2s4Sk51RDZDU2d2U1pycWRtNVpWaGhpNXdFaTE1MmtwajVPcStRMSszWjlBdnpHajJVK0dCVExCaEtYCmY0Vks3SHloTmdvWVRzdHRyaVBXUEpocVhORHZYYlkyQy8yYlo4UmNEa3U3VjFFK1d4NVAySUszUlJUbGZOVEkKOU1QS1kyRGY2SEdKNUVqZmxTUFJ1eGp2RkRhbGVnTmQzWmtFSFRTRHo1cHgycU9BSnptc09ibnNJR1Z4NEpJaQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=='
+      service:
+        name: webhook-service
+        namespace: k8s-app-runner
+        path: /mutate-k8s-app-runner-aubm-net-v1-application
+    failurePolicy: Fail
+    name: mapplication.kb.io
+    rules:
+      - apiGroups: ["k8s-app-runner.aubm.net"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["applications"]
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validate-application-v1
+webhooks:
+  - clientConfig:
+      caBundle: 'LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNuRENDQVlRQ0NRRHQzYS82cHVTaDB6QU5CZ2txaGtpRzl3MEJBUXNGQURBUU1RNHdEQVlEVlFRRERBVnQKZVMxallUQWVGdzB5TURBMU1EZ3hNakEzTVRoYUZ3MDBOekE1TWpReE1qQTNNVGhhTUJBeERqQU1CZ05WQkFNTQpCVzE1TFdOaE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdFZHMk54TlNuS0pTCnBWbmRIdEpZWUQ3aFR3WmpNaFFJeEwzVElpck1YTWR1QVo5SEc5U2Z5czdMQXBoMHlaUE1wUm5qZ05qNnh1a2gKeFlVcGV2dzZFK0xaeWpDbXNTdVdUSUNyZUJzNWVoT3YyZzB6ZUliWHhTdG9UcDROMWIvYzFHVnNneC9qdWVnKwpmcklXWE1VZzBzOFFvSE52QTd3eno4Z0UxRCt4dndPcHpsa3ZYS1h5UVNkZDFLY0VBZDZrRDF3NjFHTjlzeFg3Ck5UWmptRXAxdjRzSjhwbm0yWnA0alh6ZnFLQlR6TXdQWTBHcTB6QlBBemNHM0lMMG1GQWtpM2FLV01vYVVFMnEKamJXRUhNZDRodkdaZnFSelBIVStXZDl6T0JSd0VQZE9BMmlyY1VkcitiVzU4K3UvaldIWUpJVHhNcmV3dUluQQpnMElwTGxOMDhRSURBUUFCTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFBZFR5SEIvRU92UnlRSkQxdUVlUkMrClZsTDFsRWVqM2pHWndVQTNNcUYzclV4M3JMWFYzckxUckdZN2liRTkzYXoxd09CNVFCMnh1OGhkVmtmWmhUbjEKUmhBWDg2RnZDMDRqaDVZdkZ4aklyVXFkQnJkZ3p0UlplSXFlOTkyTGdNTFRhY2hucVp4dmZmMUJVVE01UmROLwplQ0RyZ2s4Sk51RDZDU2d2U1pycWRtNVpWaGhpNXdFaTE1MmtwajVPcStRMSszWjlBdnpHajJVK0dCVExCaEtYCmY0Vks3SHloTmdvWVRzdHRyaVBXUEpocVhORHZYYlkyQy8yYlo4UmNEa3U3VjFFK1d4NVAySUszUlJUbGZOVEkKOU1QS1kyRGY2SEdKNUVqZmxTUFJ1eGp2RkRhbGVnTmQzWmtFSFRTRHo1cHgycU9BSnptc09ibnNJR1Z4NEpJaQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=='
+      service:
+        name: webhook-service
+        namespace: k8s-app-runner
+        path: /validate-k8s-app-runner-aubm-net-v1-application
+    failurePolicy: Fail
+    name: vapplication.kb.io
+    rules:
+      - apiGroups: ["k8s-app-runner.aubm.net"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["applications"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+  - apiGroups:
+      - core
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - k8s-app-runner.aubm.net
+    resources:
+      - applications
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - k8s-app-runner.aubm.net
+    resources:
+      - applications/status
+    verbs:
+      - get
+      - patch
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: manager-role
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: system
+

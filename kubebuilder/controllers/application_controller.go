@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	k8sapprunnerv1 "github.com/aubm/k8s-app-runner/api/v1"
-	"github.com/aubm/k8s-app-runner/controllers/deployments"
+	k8sapprunnerv1 "github.com/aubm/k8s-app-runner/kubebuilder/api/v1"
+	"github.com/aubm/k8s-app-runner/kubebuilder/controllers/deployments"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"

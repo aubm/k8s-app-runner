@@ -3,7 +3,7 @@ package deployments
 import (
 	"fmt"
 
-	k8sapprunnerv1 "github.com/aubm/k8s-app-runner/api/v1"
+	k8sapprunnerv1 "github.com/aubm/k8s-app-runner/kubebuilder/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
