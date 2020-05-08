@@ -1,0 +1,348 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: k8s-app-runner-system
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  name: applications.k8s-app-runner.aubm.net
+spec:
+  group: k8s-app-runner.aubm.net
+  names:
+    kind: Application
+    listKind: ApplicationList
+    plural: applications
+    shortNames:
+    - app
+    - apps
+    singular: application
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.runtime
+      name: RUNTIME
+      type: string
+    - jsonPath: .status.nodePort[0]
+      name: NODE PORT
+      type: number
+    - jsonPath: .status.replicas
+      name: TARGETED REPLICAS
+      type: number
+    - jsonPath: .status.availableReplicas
+      name: AVAILABLE REPLICAS
+      type: number
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Application is the Schema for the applications API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: The application definition
+            properties:
+              entrypoint:
+                description: The program entrypoint, for example "main.py"
+                minLength: 1
+                type: string
+              env:
+                description: A list of user defined environment to inject in the application
+                  runtime
+                items:
+                  properties:
+                    name:
+                      description: The name of the environment variable
+                      minLength: 1
+                      type: string
+                    value:
+                      description: The value of the environment variable
+                      minLength: 1
+                      type: string
+                  required:
+                  - name
+                  - value
+                  type: object
+                type: array
+              maxReplicas:
+                default: 10
+                description: Maximum number of replicas for the application
+                format: int32
+                minimum: 1
+                type: integer
+              minReplicas:
+                default: 1
+                description: Minimum number of replicas for the application
+                format: int32
+                minimum: 1
+                type: integer
+              port:
+                default: 8080
+                description: Port which the application listen
+                format: int32
+                type: integer
+              runtime:
+                description: Application runtime name and version
+                enum:
+                - python2
+                - python3
+                - node12
+                - node14
+                type: string
+              source:
+                properties:
+                  git:
+                    properties:
+                      gitRepositoryUrl:
+                        description: Git repository URL for fetching sources
+                        minLength: 1
+                        type: string
+                      revision:
+                        default: master
+                        description: Git revision to use, default is master
+                        minLength: 1
+                        type: string
+                      root:
+                        description: Root folder of the application source in the
+                          repository tree, defaults to "" (repository's root)
+                        minLength: 1
+                        type: string
+                    required:
+                    - gitRepositoryUrl
+                    type: object
+                required:
+                - git
+                type: object
+            required:
+            - entrypoint
+            - runtime
+            - source
+            type: object
+          status:
+            description: ApplicationStatus defines the observed state of Application
+            properties:
+              availableReplicas:
+                description: Total number of non-terminated pods
+                format: int32
+                type: integer
+              nodePort:
+                description: Node port on which the deployed application listen
+                items:
+                  format: int32
+                  type: integer
+                type: array
+              replicas:
+                description: Total number of non-terminated pods targeted
+                format: int32
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: k8s-app-runner-mutate-application-v1
+webhooks:
+- clientConfig:
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNuRENDQVlRQ0NRRHQzYS82cHVTaDB6QU5CZ2txaGtpRzl3MEJBUXNGQURBUU1RNHdEQVlEVlFRRERBVnQKZVMxallUQWVGdzB5TURBMU1EZ3hNakEzTVRoYUZ3MDBOekE1TWpReE1qQTNNVGhhTUJBeERqQU1CZ05WQkFNTQpCVzE1TFdOaE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdFZHMk54TlNuS0pTCnBWbmRIdEpZWUQ3aFR3WmpNaFFJeEwzVElpck1YTWR1QVo5SEc5U2Z5czdMQXBoMHlaUE1wUm5qZ05qNnh1a2gKeFlVcGV2dzZFK0xaeWpDbXNTdVdUSUNyZUJzNWVoT3YyZzB6ZUliWHhTdG9UcDROMWIvYzFHVnNneC9qdWVnKwpmcklXWE1VZzBzOFFvSE52QTd3eno4Z0UxRCt4dndPcHpsa3ZYS1h5UVNkZDFLY0VBZDZrRDF3NjFHTjlzeFg3Ck5UWmptRXAxdjRzSjhwbm0yWnA0alh6ZnFLQlR6TXdQWTBHcTB6QlBBemNHM0lMMG1GQWtpM2FLV01vYVVFMnEKamJXRUhNZDRodkdaZnFSelBIVStXZDl6T0JSd0VQZE9BMmlyY1VkcitiVzU4K3UvaldIWUpJVHhNcmV3dUluQQpnMElwTGxOMDhRSURBUUFCTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFBZFR5SEIvRU92UnlRSkQxdUVlUkMrClZsTDFsRWVqM2pHWndVQTNNcUYzclV4M3JMWFYzckxUckdZN2liRTkzYXoxd09CNVFCMnh1OGhkVmtmWmhUbjEKUmhBWDg2RnZDMDRqaDVZdkZ4aklyVXFkQnJkZ3p0UlplSXFlOTkyTGdNTFRhY2hucVp4dmZmMUJVVE01UmROLwplQ0RyZ2s4Sk51RDZDU2d2U1pycWRtNVpWaGhpNXdFaTE1MmtwajVPcStRMSszWjlBdnpHajJVK0dCVExCaEtYCmY0Vks3SHloTmdvWVRzdHRyaVBXUEpocVhORHZYYlkyQy8yYlo4UmNEa3U3VjFFK1d4NVAySUszUlJUbGZOVEkKOU1QS1kyRGY2SEdKNUVqZmxTUFJ1eGp2RkRhbGVnTmQzWmtFSFRTRHo1cHgycU9BSnptc09ibnNJR1Z4NEpJaQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    service:
+      name: k8s-app-runner-webhook-service
+      namespace: k8s-app-runner-system
+      path: /mutate-k8s-app-runner-aubm-net-v1-application
+  failurePolicy: Fail
+  name: mapplication.kb.io
+  rules:
+  - apiGroups:
+    - k8s-app-runner.aubm.net
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - applications
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: k8s-app-runner-mutate-pod
+webhooks:
+- clientConfig:
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNuRENDQVlRQ0NRRHQzYS82cHVTaDB6QU5CZ2txaGtpRzl3MEJBUXNGQURBUU1RNHdEQVlEVlFRRERBVnQKZVMxallUQWVGdzB5TURBMU1EZ3hNakEzTVRoYUZ3MDBOekE1TWpReE1qQTNNVGhhTUJBeERqQU1CZ05WQkFNTQpCVzE1TFdOaE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdFZHMk54TlNuS0pTCnBWbmRIdEpZWUQ3aFR3WmpNaFFJeEwzVElpck1YTWR1QVo5SEc5U2Z5czdMQXBoMHlaUE1wUm5qZ05qNnh1a2gKeFlVcGV2dzZFK0xaeWpDbXNTdVdUSUNyZUJzNWVoT3YyZzB6ZUliWHhTdG9UcDROMWIvYzFHVnNneC9qdWVnKwpmcklXWE1VZzBzOFFvSE52QTd3eno4Z0UxRCt4dndPcHpsa3ZYS1h5UVNkZDFLY0VBZDZrRDF3NjFHTjlzeFg3Ck5UWmptRXAxdjRzSjhwbm0yWnA0alh6ZnFLQlR6TXdQWTBHcTB6QlBBemNHM0lMMG1GQWtpM2FLV01vYVVFMnEKamJXRUhNZDRodkdaZnFSelBIVStXZDl6T0JSd0VQZE9BMmlyY1VkcitiVzU4K3UvaldIWUpJVHhNcmV3dUluQQpnMElwTGxOMDhRSURBUUFCTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFBZFR5SEIvRU92UnlRSkQxdUVlUkMrClZsTDFsRWVqM2pHWndVQTNNcUYzclV4M3JMWFYzckxUckdZN2liRTkzYXoxd09CNVFCMnh1OGhkVmtmWmhUbjEKUmhBWDg2RnZDMDRqaDVZdkZ4aklyVXFkQnJkZ3p0UlplSXFlOTkyTGdNTFRhY2hucVp4dmZmMUJVVE01UmROLwplQ0RyZ2s4Sk51RDZDU2d2U1pycWRtNVpWaGhpNXdFaTE1MmtwajVPcStRMSszWjlBdnpHajJVK0dCVExCaEtYCmY0Vks3SHloTmdvWVRzdHRyaVBXUEpocVhORHZYYlkyQy8yYlo4UmNEa3U3VjFFK1d4NVAySUszUlJUbGZOVEkKOU1QS1kyRGY2SEdKNUVqZmxTUFJ1eGp2RkRhbGVnTmQzWmtFSFRTRHo1cHgycU9BSnptc09ibnNJR1Z4NEpJaQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    service:
+      name: k8s-app-runner-webhook-service
+      namespace: k8s-app-runner-system
+      path: /mutate-pod
+  failurePolicy: Fail
+  name: mapplication.kb.io
+  namespaceSelector:
+    matchExpressions:
+    - key: control-plane
+      operator: NotIn
+      values:
+      - controller-manager
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - pods
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-app-runner-manager-role
+rules:
+- apiGroups:
+  - core
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - k8s-app-runner.aubm.net
+  resources:
+  - applications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - k8s-app-runner.aubm.net
+  resources:
+  - applications/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-app-runner-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-app-runner-manager-role
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: k8s-app-runner-system
+---
+apiVersion: v1
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN6ekNDQWJjQ0NRQzQxOWlFZ09aRTZ6QU5CZ2txaGtpRzl3MEJBUVVGQURBUU1RNHdEQVlEVlFRRERBVnQKZVMxallUQWVGdzB5TURBMU1EZ3hNelUxTURkYUZ3MDBOekE1TWpReE16VTFNRGRhTUVNeFFUQS9CZ05WQkFNTQpPR3M0Y3kxaGNIQXRjblZ1Ym1WeUxYZGxZbWh2YjJzdGMyVnlkbWxqWlM1ck9ITXRZWEJ3TFhKMWJtNWxjaTF6CmVYTjBaVzB1YzNaak1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBMW5Hcy92SXEKSjNqSjg0Wjl6U3hzanlheVBvbmNNbDJ0VStsbU1xSklkVEZHR1g2dHhqN01XM1lFeDg4Tk1XVWhwb1pvNHBPLwpuZk5CdWJZTm9PQTAxUnIrVWJsWXRvZ2NwRmJqb2k4T2pybzUxK0Vwa01uRGorRnBKd2NiMnIreUpQWnVhMzhiCmp1MkNNR01meEN2Z3QvRlk0VkdvcktOc3F0aElIL0dWa05qNUZEblI1YnpQdVdDUFZMcDgxblorWUxtMll6MUIKU0xpTDlIOTJVby8rNUNNZzg0Q0R1Qkp4V0xjdUNramIxRDhzSGJWZ29YSXdxUStiaWdlUlJ2NjhrS0E4ek5MVgp2UWEwcENPRC9uR2MySkZyYnR3Rmw3VWFsekhGcnpEYURrYlJ5ekh0cjR4Y2NEQ2c4ZGhZR0hTOVZRWlJJK1BlClE4REx5L0lEZUdoREN3SURBUUFCTUEwR0NTcUdTSWIzRFFFQkJRVUFBNElCQVFDY294L2NVTjR2WUROYkgvcnkKa3l6djBwNFJPQVhISW9iQ3g5N1VVNXFtc3Zvb2Juekl4dGVUSlRXVkJ1NDB5ZEhIVnY1Rll5dTBDWDZkVm1TNApBYStLaFRSR1FuanVjWUxsSld5VlJxaXl1TGc4TnY4bGJaQ21LVmNSbUFtMC9HMDRvY3pMOEgvL0J6ZSt6cFBBCmhha29Ud0YyaEx2eTQwaG9FaFFkUXRtOTFacmNhRkFTbC9vVGFDL0xMVDVvcnBRTTNsYzdmR0xlUHZXTFY1ZnEKN3kweGFqVWhLTlp2eFd3Ym5LSURwbEFYSTVBUGNEYWdIeG1tYUM1aTBDUUpLdE5ENHl3ZEQ5TmN4Y0dRUzBCWApyRkpvcXkzS0ZVSFREdjRENjJ3WVkwcUlFaUU5M1F1c0x5K2E4bVBpbHYvTWxzbmxtV2tqK3RJZFBhYkJVYmR1CjdzNzUKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBMW5Hcy92SXFKM2pKODRaOXpTeHNqeWF5UG9uY01sMnRVK2xtTXFKSWRURkdHWDZ0CnhqN01XM1lFeDg4Tk1XVWhwb1pvNHBPL25mTkJ1YllOb09BMDFScitVYmxZdG9nY3BGYmpvaThPanJvNTErRXAKa01uRGorRnBKd2NiMnIreUpQWnVhMzhianUyQ01HTWZ4Q3ZndC9GWTRWR29yS05zcXRoSUgvR1ZrTmo1RkRuUgo1YnpQdVdDUFZMcDgxblorWUxtMll6MUJTTGlMOUg5MlVvLys1Q01nODRDRHVCSnhXTGN1Q2tqYjFEOHNIYlZnCm9YSXdxUStiaWdlUlJ2NjhrS0E4ek5MVnZRYTBwQ09EL25HYzJKRnJidHdGbDdVYWx6SEZyekRhRGtiUnl6SHQKcjR4Y2NEQ2c4ZGhZR0hTOVZRWlJJK1BlUThETHkvSURlR2hEQ3dJREFRQUJBb0lCQURiOXM2VTFLSVl5dldjTApxQnNETjF1R1N0TXF1eUxYVHVsand1ZGRJa09iUFNTd2paTjI2eVRSSU95ME5lZml6VHhNMzN5cThzcG9aUVJnCm9TSU9ITDVCUzlKZE8xaWprdVM1dTJvTnN5ZjZyWGFrc09vR00zWWtFYmtHWTZnMjNGSUtOOHF0TDczNVBoZDIKYytEMGQ0MzBBQnpYdWU5N2dSUlduamhDMVYzdExkTksyS0NCbXhvSk10bm9rVjBPSC9qY1ByQWNzeTAzcWpvOQpwb2hxUkRqMEN2NUpCT2JjL3krd2VoN05sRzRiY2dUUGJYUERYQ3J0bHZTMkRmRFdFSlNZNDdwcGJTbEgzQlB5CjNacCtjeVRpbEhWRnNMK3BCanVNbkNBeHpzTW9ybGlFNFlnRFpsVFdxOGJHcWszNEVjdTQyYVNjZUltSi8wTG8KaDFyMmZYRUNnWUVBN2hyWnA4WmZzbGVWMzB1Tk10aEFQYXNZNEprUTU3S0k2a0JwbTJ2OUZMek05cm1FRHZFMwovc0ZxUEZCeU9XdXVtUEZiVjdEaG1PVWNjQXovNitsTHhoRjB3dVptSGNBYi83cDIzVzdWN09KQVArQmNtRXYwCld3WHN1cTJNKytwTXFuM2o3UFFqU3RUMHBGYWIrNUJtKzJ5Rmt5SXhzeXdpSkV5K3NhUmZDcWNDZ1lFQTVvK1gKQU5vVkFtVXJOL3hVVTRFQjNnUndUNDNjZXhHOWsvY015NHVQMC9UU01LWlNFM2pzc2hIOVQ1SHU5UmlZWDBHbgp4MFRSeWlhUjNZMjFuNWd4UUI4UFVqNnlFSExOVVVPQWt2dEZrVU5tQkxjeWVLT09zZ2c1VVp6Y28vZXdaNURFClJMZU92OFhlMkV6WGdUdUU2UzVoWnpCT1lIOXYrQi93U3J6UzVQMENnWUEyR2QyNHRHZE1FNENYUXdock5CMnMKcFhLNm5henNxSEZab0pjZVhIUWR3U1JsTHhQbGZVTzIyK1d5bktqSGlVTWJ0ME9FOGtqZ1A3YXRjeGEzV01RQgoxamVNaldOSWdUMGJaeGZaQ25VTEpRRnFRaVZuNldJMVNHeFlvbFIxYlBCTWtOdzRHK1RrL093MVp3UjhMWHhvCnhtaTNYTDZrTW5QemdZaVd2bjFsNHdLQmdBemt3TXdTWmhSaE5mNkdoT3k2alRFdVRGMldrRnJ0amcyRlJsam4Kc0I1cFZZdlU4VWdYZmgwak5taEp2L1JDOE5wNjRIZ2JXQ1FXN2hkV3dtNXZZMm16a3ZiRmZNM0FyY3k2bXFrZApsakZlZElrVSthU1hlUFpwMFZMSUUrcXpnbEQ0WHBGOU5tVnhHbG84U2R6M1NDS0dMbnBIMEVwRE5pN0pFbllMCmd6dTlBb0dCQUtnR1d3YjAydFhNNENCeE5OeXIzaGhycEZiN0QvMGJ6T1MyS1pCRkJSSDl6dndnSjNKNmQ0N1oKbHpOSTVTendPNU9UQjFORVlwSFZ2OVNXWlJWUlpuZDhmUkxtRXhCTHZLaHErZmljVDNCaGNNaGlVZE8wRVJvNQpuMHlMbC9GMzR0UFJydHlaQXdBaGwvamMwYmE2MWVxMTMwSlkzNkJpdXliYUkrMlQrVU4wCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==
+kind: Secret
+metadata:
+  name: k8s-app-runner-controller-manager-tls-26fb29mf8h
+  namespace: k8s-app-runner-system
+type: kubernetes.io/tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-app-runner-webhook-service
+  namespace: k8s-app-runner-system
+spec:
+  ports:
+  - port: 443
+    targetPort: 9443
+  selector:
+    control-plane: controller-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: k8s-app-runner-controller-manager
+  namespace: k8s-app-runner-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+    spec:
+      containers:
+      - command:
+        - /manager
+        image: aubm/k8s-app-runner-controller-minimal:latest
+        imagePullPolicy: Always
+        name: manager
+        resources:
+          limits:
+            cpu: 100m
+            memory: 30Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: tls
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: tls
+        secret:
+          secretName: k8s-app-runner-controller-manager-tls-26fb29mf8h
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: k8s-app-runner-validate-application-v1
+webhooks:
+- clientConfig:
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNuRENDQVlRQ0NRRHQzYS82cHVTaDB6QU5CZ2txaGtpRzl3MEJBUXNGQURBUU1RNHdEQVlEVlFRRERBVnQKZVMxallUQWVGdzB5TURBMU1EZ3hNakEzTVRoYUZ3MDBOekE1TWpReE1qQTNNVGhhTUJBeERqQU1CZ05WQkFNTQpCVzE1TFdOaE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdFZHMk54TlNuS0pTCnBWbmRIdEpZWUQ3aFR3WmpNaFFJeEwzVElpck1YTWR1QVo5SEc5U2Z5czdMQXBoMHlaUE1wUm5qZ05qNnh1a2gKeFlVcGV2dzZFK0xaeWpDbXNTdVdUSUNyZUJzNWVoT3YyZzB6ZUliWHhTdG9UcDROMWIvYzFHVnNneC9qdWVnKwpmcklXWE1VZzBzOFFvSE52QTd3eno4Z0UxRCt4dndPcHpsa3ZYS1h5UVNkZDFLY0VBZDZrRDF3NjFHTjlzeFg3Ck5UWmptRXAxdjRzSjhwbm0yWnA0alh6ZnFLQlR6TXdQWTBHcTB6QlBBemNHM0lMMG1GQWtpM2FLV01vYVVFMnEKamJXRUhNZDRodkdaZnFSelBIVStXZDl6T0JSd0VQZE9BMmlyY1VkcitiVzU4K3UvaldIWUpJVHhNcmV3dUluQQpnMElwTGxOMDhRSURBUUFCTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFBZFR5SEIvRU92UnlRSkQxdUVlUkMrClZsTDFsRWVqM2pHWndVQTNNcUYzclV4M3JMWFYzckxUckdZN2liRTkzYXoxd09CNVFCMnh1OGhkVmtmWmhUbjEKUmhBWDg2RnZDMDRqaDVZdkZ4aklyVXFkQnJkZ3p0UlplSXFlOTkyTGdNTFRhY2hucVp4dmZmMUJVVE01UmROLwplQ0RyZ2s4Sk51RDZDU2d2U1pycWRtNVpWaGhpNXdFaTE1MmtwajVPcStRMSszWjlBdnpHajJVK0dCVExCaEtYCmY0Vks3SHloTmdvWVRzdHRyaVBXUEpocVhORHZYYlkyQy8yYlo4UmNEa3U3VjFFK1d4NVAySUszUlJUbGZOVEkKOU1QS1kyRGY2SEdKNUVqZmxTUFJ1eGp2RkRhbGVnTmQzWmtFSFRTRHo1cHgycU9BSnptc09ibnNJR1Z4NEpJaQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    service:
+      name: k8s-app-runner-webhook-service
+      namespace: k8s-app-runner-system
+      path: /validate-k8s-app-runner-aubm-net-v1-application
+  failurePolicy: Fail
+  name: vapplication.kb.io
+  rules:
+  - apiGroups:
+    - k8s-app-runner.aubm.net
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - applications
