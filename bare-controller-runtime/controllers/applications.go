@@ -14,6 +14,10 @@ type ApplicationReconcilier struct{}
 
 func (r ApplicationReconcilier) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	log.Printf("received request for pod %s", request.NamespacedName)
-	// TODO: do something here
+
+	// The bare-controller-runtime implementation actually does nothing.
+	// Please consult the implementation with Kubebuilder here:
+	// https://github.com/aubm/k8s-app-runner/blob/master/kubebuilder/controllers/application_controller.go
+
 	return reconcile.Result{}, nil
 }
