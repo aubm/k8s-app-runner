@@ -7,6 +7,11 @@ namePrefix: k8s-app-runner-
 resources:
   - crd.yaml
   - manisfests.yaml
+  - rbac
+  - webhook
+
+patchesStrategicMerge:
+  - patches/webhooks.yaml
 
 secretGenerator:
   - name: controller-manager-tls
@@ -14,6 +19,3 @@ secretGenerator:
       - pki/tls.crt
       - pki/tls.key
     type: "kubernetes.io/tls"
-
-configurations:
-  - kustomizeconfig.yaml

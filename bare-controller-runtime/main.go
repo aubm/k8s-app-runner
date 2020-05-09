@@ -1,4 +1,4 @@
-//go:generate controller-gen object paths="./..."
+//go:generate controller-gen object rbac:roleName=manager-role webhook paths="./..."
 
 package main
 
@@ -10,9 +10,9 @@ import (
 	"net/http"
 
 	"github.com/aubm/k8s-app-runner/bare-controller-runtime/api"
+	"github.com/aubm/k8s-app-runner/bare-controller-runtime/controllers"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -35,7 +35,7 @@ func _main() error {
 
 	if err := ctrl.NewControllerManagedBy(mgr).
 		For(&api.Application{}).
-		Complete(&applicationReconcilier{}); err != nil {
+		Complete(&controllers.ApplicationReconcilier{}); err != nil {
 		return fmt.Errorf("failed to create new controller: %v", err)
 	}
 
@@ -55,17 +55,11 @@ func _main() error {
 	return nil
 }
 
-type applicationReconcilier struct{}
-
-func (r applicationReconcilier) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("received request for pod %s", request.NamespacedName)
-	// TODO: do something here
-	return reconcile.Result{}, nil
-}
-
 type podMutator struct {
 	decoder *admission.Decoder
 }
+
+// +kubebuilder:webhook:verbs=create;update,path=/mutate-pod,mutating=true,failurePolicy=fail,groups=core,resources=pods,versions=v1,name=mpod.kb.io
 
 func (m *podMutator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	pod := &corev1.Pod{}

@@ -67,6 +67,8 @@ type ApplicationList struct {
 
 var _ webhook.Defaulter = &Application{}
 
+// +kubebuilder:webhook:path=/mutate-k8s-app-runner-aubm-net-v1-application,mutating=true,failurePolicy=fail,groups=k8s-app-runner.aubm.net,resources=applications,verbs=create;update,versions=v1,name=mapplication.kb.io
+
 func (in *Application) Default() {
 	if in.ObjectMeta.Annotations == nil {
 		in.ObjectMeta.Annotations = map[string]string{}
@@ -75,6 +77,8 @@ func (in *Application) Default() {
 }
 
 var _ webhook.Validator = &Application{}
+
+// +kubebuilder:webhook:verbs=create;update,path=/validate-k8s-app-runner-aubm-net-v1-application,mutating=false,failurePolicy=fail,groups=k8s-app-runner.aubm.net,resources=applications,versions=v1,name=vapplication.kb.io
 
 func (in *Application) ValidateCreate() error {
 	return in.validate()
